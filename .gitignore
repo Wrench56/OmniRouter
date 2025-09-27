@@ -1,0 +1,5 @@
+# Ignore playground/ directory
+playground/
+
+# Ignore commitlint executable
+tools/commitlint*
