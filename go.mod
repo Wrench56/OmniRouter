@@ -3,6 +3,7 @@ module omnirouter
 go 1.24.4
 
 require (
+	github.com/BurntSushi/toml v1.5.0
 	github.com/lmittmann/tint v1.1.2
 	github.com/mattn/go-isatty v0.0.20
 )
