@@ -1,13 +1,15 @@
 package main
 
 import (
-	"log/slog"
 	logger "omnirouter/internal"
 	"omnirouter/internal/config"
+
+	"github.com/rs/zerolog"
 )
 
 func main() {
-	logger.SetupLogger()
-	slog.Info("Hello World!")
+	logger.Setup()
+	logger.SetLevel(zerolog.DebugLevel)
+	logger.Info("OmniRouter started!")
 	config.ParseConfig("examples/config.toml")
 }
