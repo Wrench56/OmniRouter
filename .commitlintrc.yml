@@ -25,6 +25,7 @@ rules:
       - tools
       - logger
       - config
+      - modmgr
   subject-empty:
     level: error
   type:
