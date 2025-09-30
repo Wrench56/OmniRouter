@@ -23,6 +23,7 @@ rules:
       - readme
       - license
       - tools
+      - logger
       - config
   subject-empty:
     level: error
