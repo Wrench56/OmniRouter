@@ -3,7 +3,7 @@ package modmgr
 import (
 	"context"
 	"io/fs"
-	logger "omnirouter/internal"
+	"omnirouter/internal/logger"
 	"os"
 	"path/filepath"
 

@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	logger "omnirouter/internal"
+	"omnirouter/internal/logger"
 
 	"github.com/BurntSushi/toml"
 )

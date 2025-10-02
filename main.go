@@ -1,8 +1,8 @@
 package main
 
 import (
-	logger "omnirouter/internal"
 	"omnirouter/internal/config"
+	"omnirouter/internal/logger"
 	"omnirouter/internal/modmgr"
 
 	"github.com/rs/zerolog"
