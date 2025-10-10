@@ -26,6 +26,7 @@ rules:
       - logger
       - config
       - modmgr
+      - bridges
   subject-empty:
     level: error
   type:
