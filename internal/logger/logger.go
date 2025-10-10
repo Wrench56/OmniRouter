@@ -118,6 +118,10 @@ func Setup() {
 	zerolog.SetGlobalLevel(defaultLevel)
 
 	zerolog.CallerMarshalFunc = func(_ uintptr, file string, line int) string {
+		if IsLogCallerModuleSet() {
+			return ConsumeLogCallerModule()
+		}
+
 		if idx := strings.LastIndexAny(file, `/\`); idx >= 0 {
 			file = file[idx+1:]
 		}
