@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-bool health(void) {
+bool cffi_health(void) {
 #ifdef __WINDOWS__
     return false;
 #elif __linux__
@@ -19,7 +19,7 @@ bool health(void) {
 #endif
 }
 
-#define load_module load_mod_default
+#define cffi_load_module cffi_load_mod_default
 
 #ifdef __linux__
 
@@ -27,10 +27,10 @@ bool health(void) {
 #define DLSYM_ERROR_MSG "dlsym() error during \"init\" function loading: %s"
 #define INIT_VERSION_LOWER_WRN "Version of module \"%s\" (v%d) is lower than current module loader version (v%d). Continuing without guarantees..."
 #define INIT_STRUCT_ERROR_MSG "init_struct returned by module %s was NULL"
-#undef load_module
-#define load_module load_so
+#undef cffi_load_module
+#define cffi_load_module load_so
 
-loadmod_err_t load_so(char* path) {
+loadmod_err_t cffi_load_so(char* path) {
     void* handle = dlopen(path, RTLD_NOW);
     if (!handle) {
         char* buf = alloca(strlen(path) + sizeof(LOAD_SO_ERROR_MSG));
@@ -75,7 +75,7 @@ loadmod_err_t load_so(char* path) {
 }
 #endif
 
-loadmod_err_t load_mod_default(char* path) {
+loadmod_err_t cffi_load_mod_default(char* path) {
     log_error("Unsupported OS detected!");
     return LOADMOD_UNSUPPORTED_OS;
 }

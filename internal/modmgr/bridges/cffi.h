@@ -46,7 +46,7 @@ typedef init_struct_t* (*init_func_t)();
 #endif
 
 /* cffi.c exports */
-bool health(void);
-loadmod_err_t load_module(char* path);
+bool cffi_health(void);
+loadmod_err_t cffi_load_module(char* path);
 
 #endif // CFFI_H

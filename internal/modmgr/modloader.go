@@ -1,3 +1,5 @@
+//go:build cgo
+
 package modmgr
 
 /*
@@ -15,12 +17,12 @@ import (
 
 func loadModule(path string) {
 	logger.Info("Checking modloaders...")
-	if !C.health() {
+	if !C.cffi_health() {
 		logger.Warn("C FFI module loader health check failed!")
 	}
 	logger.Info("Health checks done!")
 
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
-	C.load_module(cpath)
+	C.cffi_load_module(cpath)
 }
