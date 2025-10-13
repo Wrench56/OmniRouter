@@ -27,6 +27,7 @@ rules:
       - config
       - modmgr
       - bridges
+      - examples
   subject-empty:
     level: error
   type:
