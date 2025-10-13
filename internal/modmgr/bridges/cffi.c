@@ -29,8 +29,9 @@ bool cffi_health(void) {
 loadmod_err_t cffi_load_so(char* path) {
     void* handle = dlopen(path, RTLD_NOW);
     if (!handle) {
-        char* buf = alloca(strlen(path) + sizeof(LOAD_SO_ERROR_MSG));
-        snprintf(buf, sizeof(buf) + sizeof(LOAD_SO_ERROR_MSG), LOAD_SO_ERROR_MSG, path);
+        uint32_t len = strlen(path) + sizeof(LOAD_SO_ERROR_MSG);
+        char* buf = alloca(len);
+        snprintf(buf, len, LOAD_SO_ERROR_MSG, path);
         log_error(buf);
         return LOADMOD_NO_SUCH_MOD;
     }
