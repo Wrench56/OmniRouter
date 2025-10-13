@@ -43,7 +43,7 @@ typedef init_struct_t* (*init_func_t)();
 #ifdef __linux__
     #include <dlfcn.h>
     #include <alloca.h>
-#endif
+#endif // __linux__
 
 /* cffi.c exports */
 bool cffi_health(void);

@@ -19,16 +19,12 @@ bool cffi_health(void) {
 #endif
 }
 
-#define cffi_load_module cffi_load_mod_default
-
 #ifdef __linux__
 
 #define LOAD_SO_ERROR_MSG "Invalid module path: %s"
 #define DLSYM_ERROR_MSG "dlsym() error during \"init\" function loading: %s"
 #define INIT_VERSION_LOWER_WRN "Version of module \"%s\" (v%d) is lower than current module loader version (v%d). Continuing without guarantees..."
 #define INIT_STRUCT_ERROR_MSG "init_struct returned by module %s was NULL"
-#undef cffi_load_module
-#define cffi_load_module load_so
 
 loadmod_err_t cffi_load_so(char* path) {
     void* handle = dlopen(path, RTLD_NOW);
@@ -73,9 +69,15 @@ loadmod_err_t cffi_load_so(char* path) {
 
     return LOADMOD_SUCCESS;
 }
-#endif
+#endif // __linux__
 
-loadmod_err_t cffi_load_mod_default(char* path) {
-    log_error("Unsupported OS detected!");
+
+loadmod_err_t cffi_load_module(char* path) {
+    #ifdef __linux__
+        return cffi_load_so(path);
+    #else
+        log_error("Unsupported OS detected!");
+    #endif
+
     return LOADMOD_UNSUPPORTED_OS;
 }
