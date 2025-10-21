@@ -5,6 +5,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+static or_api_t api = {
+    .version  = MODLOADER_VERSION,
+    .loginfo  = loginfo,
+    .logwarn  = logwarn,
+    .logerror = logerror,
+    .logfatal = logfatal,
+    .register_http = or_register_http
+};
+
 bool cffi_health(void) {
 #ifdef __WIN32__
     return true;
@@ -19,30 +28,26 @@ bool cffi_health(void) {
 #endif
 }
 
+void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* req, void* extra) {
+    fn(ctx, req, extra);
+}
 
-#define INIT_VERSION_LOWER_WRN "Version of module \"%s\" (v%d) is lower than current module loader version (v%d). Continuing without guarantees..."
-#define INIT_STRUCT_ERROR_MSG "init_struct returned by module %s was NULL"
+#define INIT_FUNC_FAIL "Warning: init function for \"%s\" returned false (failed state)"
 
 inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_func) {
-    /* Call init function and save init_struct */
-    init_struct_t* init_struct = init_func();
-    if (init_struct == NULL) {
-        uint32_t len = strlen(path) + sizeof(INIT_STRUCT_ERROR_MSG);
-        char* buf = alloca(len);
-        snprintf(buf, len, INIT_STRUCT_ERROR_MSG, path);
-        log_error(buf);
-        return LOADMOD_INIT_STRUCT_NULL;
-    }
+    loadmod_err_t ret = LOADMOD_SUCCESS;
 
-    /* init_struct version mismatch check */
-    if (init_struct->version < MODLOADER_VERSION) {
-        uint32_t len = strlen(path) + sizeof(INIT_VERSION_LOWER_WRN) + MAX_VERSION_LENGTH * 2;
+    /* Call init function */
+    bool success = init_func(&api);
+    if (!success) {
+        uint32_t len = strlen(path) + sizeof(INIT_FUNC_FAIL);
         char* buf = alloca(len);
-        snprintf(buf, len, INIT_VERSION_LOWER_WRN, path, init_struct->version, MODLOADER_VERSION);
+        snprintf(buf, len, INIT_FUNC_FAIL, path);
         log_warn(buf);
+        ret = LOADMOD_INIT_FUNC_STATE_FAIL;
     }
 
-    return LOADMOD_SUCCESS;
+    return ret;
 }
 
 
@@ -77,7 +82,7 @@ inline static loadmod_err_t cffi_load_so(char* path) {
 
     return cffi_common_init_call(path, init_func);
 }
-#elif defined(__WIN32__)
+#elif defined(_WIN32)
 
 #define LOAD_DLL_ERROR_MSG "Invalid module path: %s"
 #define GETPROCADDRESS_ERROR_MSG "GetProcAddress() error during \"init\" function loading (ERRNR: 0x%08x): %s"
@@ -114,10 +119,10 @@ inline static loadmod_err_t cffi_load_dll(char* path) {
 
 #endif
 
-inline loadmod_err_t cffi_load_module(char* path) {
+loadmod_err_t cffi_load_module(char* path) {
     #ifdef __linux__
         return cffi_load_so(path);
-    #elif __WIN32__
+    #elif _WIN32
         return cffi_load_dll(path);
     #else
         log_error("Unsupported OS detected!");
