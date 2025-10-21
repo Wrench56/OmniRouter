@@ -28,6 +28,7 @@ rules:
       - modmgr
       - bridges
       - examples
+      - router
   subject-empty:
     level: error
   type:
