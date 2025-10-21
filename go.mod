@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 )
