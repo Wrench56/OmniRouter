@@ -1,11 +1,15 @@
 package router
 
 import (
+	"net"
+	"omnirouter/internal/logger"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	radix "github.com/armon/go-radix"
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -87,4 +91,58 @@ func (r *radixRouter) Lookup(path string) (HTTPHandler, bool) {
 		return nil, false
 	}
 	return v.(HTTPHandler), true
+}
+
+func StartServer(addr string) (*fasthttp.Server, net.Listener, error) {
+	Setup()
+
+	s := &fasthttp.Server{
+		Handler:                       dispatch,
+		NoDefaultServerHeader:         true,
+		NoDefaultDate:                 true,
+		DisableHeaderNamesNormalizing: true,
+		ReadTimeout:                   10 * time.Second,
+		WriteTimeout:                  20 * time.Second,
+		MaxRequestBodySize:            16 << 20,
+		TCPKeepalive:                  true,
+		ReadBufferSize:                4096,
+		WriteBufferSize:               4096,
+	}
+
+	ln, err := net.Listen("tcp4", addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s, ln, nil
+}
+
+func RunServer(addr string) error {
+	logger.Info("Running server on address", "addr", addr)
+	s, ln, err := StartServer(addr)
+	if err != nil {
+		return err
+	}
+	return s.Serve(ln)
+}
+
+func dispatch(ctx *fasthttp.RequestCtx) {
+    switch string(ctx.Path()) {
+    case "/favicon.ico":
+        ctx.SetStatusCode(fasthttp.StatusNoContent)
+        return
+    case "/robots.txt":
+        ctx.SetStatusCode(fasthttp.StatusNoContent)
+        return
+    }
+
+	path := string(ctx.Path())
+	logger.Debug("Looking up handler for path", "path", path)
+
+	h, ok := GetHTTPRouter().Lookup(path)
+	if !ok {
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		return
+	}
+
+	h.Invoke(ContextPtr(unsafe.Pointer(ctx)), RequestPtr(nil))
 }
