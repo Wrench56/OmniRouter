@@ -6,3 +6,6 @@ logs/
 
 # Ignore commitlint executable
 tools/commitlint*
+
+# Ignore built executable
+omnirouter*
