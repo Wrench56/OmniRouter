@@ -9,3 +9,6 @@ tools/commitlint*
 
 # Ignore built executable
 omnirouter*
+
+# Ignore mirrorlib
+mirrordir/
