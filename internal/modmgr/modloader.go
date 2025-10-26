@@ -4,10 +4,9 @@ package modmgr
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/bridges
-#ifdef _WIN32
-#cgo LDFLAGS: -lkernel32
-#endif
+#cgo windows LDFLAGS: -lkernel32
 #include "bridges/cffi.h"
+#include <stdlib.h>
 */
 import "C"
 
