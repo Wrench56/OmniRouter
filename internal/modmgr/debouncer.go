@@ -14,8 +14,11 @@ var (
 )
 
 func ResetDebounceTimer(path string) {
-	key, _ := filepath.Abs(path)
+	if !IsModuleFile(path) {
+		return
+	}
 
+	key, _ := filepath.Abs(path)
 	debMu.Lock()
 	timer := path2timer[key]
 	if timer == nil {

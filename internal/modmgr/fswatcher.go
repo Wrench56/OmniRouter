@@ -30,9 +30,7 @@ func LookForChanges(rootpath string) {
 			if d.IsDir() {
 				_ = watcher.Add(path)
 			} else {
-                if IsModuleFile(path) {
-	    			CreateModule(path)
-                }
+				CreateModule(path)
 			}
 		}
 		return nil
@@ -52,19 +50,16 @@ func LookForChanges(rootpath string) {
 				p := filepath.Clean(event.Name)
 
 				if event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) || event.Has(fsnotify.Chmod) {
-					fi, err := os.Stat(p); 
+					fi, err := os.Stat(p)
 					if err == nil {
 						if fi.IsDir() {
 							if err := watcher.Add(p); err == nil {
 								logger.Debug("Watch added", "dir", p)
 							}
 						} else {
-                            if IsModuleFile(p) {
-							    ResetDebounceTimer(p)
-                            }
+							ResetDebounceTimer(p)
 						}
 					}
-					
 				}
 
 				if event.Has(fsnotify.Write) {
@@ -75,17 +70,13 @@ func LookForChanges(rootpath string) {
 					}
 
 					if !st.IsDir() {
-                        if IsModuleFile(p) {
-    						ResetDebounceTimer(p)
-                        }
+						ResetDebounceTimer(p)
 						logger.Debug("File modified", "path", p)
 					}
 				}
 
 				if event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename) {
-                    if IsModuleFile(p) {
-    					RemoveModule(p)
-                    }
+					RemoveModule(p)
 					err = watcher.Remove(p)
 					if err == nil {
 						logger.Debug("Watch removed", "path", p)
