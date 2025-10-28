@@ -2,91 +2,136 @@ package modmgr
 
 import (
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
+	"sync"
+
+	"omnirouter/internal/logger"
 
 	"github.com/sashka/atomicfile"
-	"omnirouter/internal/logger"
 )
 
-var isSoLikeRegex = regexp.MustCompile(`(?i)\.(dll|dylib|so(\.[0-9]+)*)$`)
+var (
+	mirrorMu  sync.Mutex
+	src2mod   = make(map[string]Module)
+	mirrordir string
+)
 
-func isSoLike(name string) bool {
-	return isSoLikeRegex.MatchString(filepath.Base(name))
+func SetMirrorDir(dir string) error {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(abs, 0o755); err != nil {
+		return err
+	}
+	mirrorMu.Lock()
+	mirrordir = abs
+	mirrorMu.Unlock()
+	return nil
 }
 
-func CopyMods(src string, dst string) error {
-	srcAbs, err := filepath.Abs(src)
-	if err != nil {
-		logger.Error("Failed to resolve source path", "path", src, "err", err)
-		return err
+func CreateModule(path string) {
+	if !IsModuleFile(filepath.Base(path)) {
+		return
 	}
 
-	dstAbs, err := filepath.Abs(dst)
-	if err != nil {
-		logger.Error("Failed to resolve destination path", "path", dst, "err", err)
-		return err
+	mod := Module{
+		handle:   0,
+		type_:    extensionToModuleType(filepath.Ext(filepath.Base(path))),
+		path:     path,
+		filename: filepath.Base(path),
 	}
 
-	if err := os.MkdirAll(dstAbs, 0o755); err != nil {
-		logger.Error("Failed to create destination root", "dst", dstAbs, "err", err)
-		return err
+	mirrorMu.Lock()
+	src2mod[filepath.Clean(path)] = mod
+	mirrorMu.Unlock()
+	mod.Stage()
+}
+
+func ReloadModule(path string) {
+	if !IsModuleFile(filepath.Base(path)) {
+		return
 	}
 
-	sep := string(os.PathSeparator)
-	dstInsideSrc := strings.HasPrefix(dstAbs+sep, srcAbs+sep)
-
-	logger.Info("Copying shared libs", "src", srcAbs, "dst", dstAbs)
-
-	return filepath.WalkDir(srcAbs, func(p string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			if d != nil && d.IsDir() {
-				logger.Warn("Skipping unreadable directory", "path", p, "err", walkErr)
-				return fs.SkipDir
-			}
-			logger.Warn("Skipping entry due to walk error", "path", p, "err", walkErr)
-			return nil
-		}
-
-		if d == nil {
-			return nil
-		}
-
-		if d.IsDir() && dstInsideSrc && p == dstAbs {
-			return fs.SkipDir
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
-		if !d.Type().IsRegular() || !isSoLike(p) {
-			return nil
-		}
-
-		dstPath := filepath.Join(dstAbs, filepath.Base(p))
-
-		fi, err := d.Info()
-		var mode os.FileMode = 0o644
-		if err == nil {
-			mode = fi.Mode()
-		} else {
-			logger.Debug("Stat failed; using default mode", "path", p, "err", err)
-		}
-
-		err = copyFileAtomic(p, dstPath, mode)
+	mirrorMu.Lock()
+	mod, ok := src2mod[filepath.Clean(path)]
+	if ok {
+		err := mod.Unstage()
 		if err != nil {
-			logger.Warn("Failed to copy shared lib", "src", p, "dst", dstPath, "err", err)
-			return nil
+			logger.Error("Unable to unload module with", "path", path)
 		}
-		return nil
-	})
+
+		dst := filepath.Join(mirrordir, mod.filename)
+		mode := os.FileMode(0o644)
+		if fi, err := os.Stat(mod.path); err == nil {
+			mode = fi.Mode()
+		}
+
+		if err := copyFileAtomic(mod.path, dst, mode); err != nil {
+			logger.Error("Could not copy file atomically", "src", mod.path, "dst", dst)
+		}
+
+		mod.Load()
+		logger.Info("Staged module", "path", mod.path, "type", mod.type_)
+
+		mirrorMu.Unlock()
+
+	} else {
+		mirrorMu.Unlock()
+		CreateModule(path)
+	}
+
 }
 
-func copyFileAtomic(src, dst string, mode os.FileMode) error {
+func RemoveModule(path string) {
+	if !IsModuleFile(filepath.Base(path)) {
+		return
+	}
+
+	mirrorMu.Lock()
+	mod, ok := src2mod[filepath.Clean(path)]
+	if ok {
+		err := mod.Unstage()
+		if err == nil {
+			delete(src2mod, path)
+		} else {
+			logger.Error("Unable to unload module with", "path", path)
+		}
+	} else {
+		logger.Error("Unalbe to find and unload module with", "path", path)
+	}
+	mirrorMu.Unlock()
+}
+
+func (mod *Module) Stage() error {
+	dst := filepath.Join(mirrordir, mod.filename)
+
+	mode := os.FileMode(0o644)
+	if fi, err := os.Stat(mod.path); err == nil {
+		mode = fi.Mode()
+	}
+
+	if err := copyFileAtomic(mod.path, dst, mode); err != nil {
+		return err
+	}
+
+	mod.Load()
+	logger.Info("Staged module", "path", mod.path, "type", mod.type_)
+	return nil
+}
+
+func (mod *Module) Unstage() error {
+	mod.Unload()
+	err := removeFileAtomic(filepath.Join(mirrordir, mod.filename))
+	if err != nil {
+		return err
+	}
+	logger.Info("Unstaged module", "path", mod.path, "type", mod.type_)
+	return nil
+}
+
+func copyFileAtomic(src string, dst string, mode os.FileMode) error {
 	sf, err := os.Open(src)
 	if err != nil {
 		logger.Error("Failed to open source", "src", src, "err", err)
@@ -111,5 +156,17 @@ func copyFileAtomic(src, dst string, mode os.FileMode) error {
 	}
 
 	logger.Info("Copied shared library atomically", "src", src, "dst", dst)
+	return nil
+}
+
+/* Technically not atomic on all FS, but whatever, I'm keeping the name */
+func removeFileAtomic(src string) error {
+	if err := os.Remove(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		logger.Error("Failed to remove file", "path", src, "err", err)
+		return err
+	}
 	return nil
 }

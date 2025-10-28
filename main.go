@@ -13,8 +13,8 @@ func main() {
 	logger.Setup()
 	logger.SetLevel(zerolog.DebugLevel)
 	logger.Info("OmniRouter started!")
-	modmgr.CopyMods("examples/c/hello_world", "mirrordir/")
 	config.ParseConfig("examples/c/hello_world/config.toml")
+	modmgr.SetMirrorDir("./mirrordir/")
 	modmgr.LookForChanges("examples/c/hello_world/")
 	router.RunServer(":8080")
 }
