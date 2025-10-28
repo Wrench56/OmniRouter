@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "../../../../internal/modmgr/bridges/cffi.h"
 
