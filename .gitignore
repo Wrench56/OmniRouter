@@ -4,6 +4,9 @@ playground/
 # Ignore logs/ directory
 logs/
 
+# Ignore CCLS cache
+.ccls-cache/
+
 # Ignore commitlint executable
 tools/commitlint*
 
