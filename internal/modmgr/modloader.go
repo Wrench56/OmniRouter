@@ -32,16 +32,15 @@ func (h cHandler) Invoke(ctx router.ContextPtr, req router.RequestPtr) {
 	)
 }
 
-func loadModule(path string) {
-	logger.Info("Checking modloaders...")
-	if !C.cffi_health() {
-		logger.Warn("C FFI module loader health check failed!")
-	}
-	logger.Info("Health checks done!")
-
-	cpath := C.CString(path)
+func (mod Module) Load() bool {
+	cpath := C.CString(mod.path)
 	defer C.free(unsafe.Pointer(cpath))
 	C.cffi_load_module(cpath)
+	return true
+}
+
+func (mod Module) Unload() bool {
+	return true
 }
 
 //export or_register_http
