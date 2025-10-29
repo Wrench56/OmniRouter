@@ -94,6 +94,4 @@ func LookForChanges(rootpath string) {
 			}
 		}
 	}()
-
-	<-make(chan struct{})
 }
