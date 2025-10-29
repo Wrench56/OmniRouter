@@ -10,13 +10,12 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-func LookForChanges(rootpath string) {
+func LookForChanges(ctx context.Context, rootpath string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.Error("FSNotify setup failed", "error", err)
 		return
 	}
-	defer watcher.Close()
 
 	root := filepath.Clean(rootpath)
 
@@ -36,10 +35,8 @@ func LookForChanges(rootpath string) {
 		return nil
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	go func() {
+		defer watcher.Close()
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -47,42 +44,7 @@ func LookForChanges(rootpath string) {
 					return
 				}
 
-				p := filepath.Clean(event.Name)
-
-				if event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) || event.Has(fsnotify.Chmod) {
-					fi, err := os.Stat(p)
-					if err == nil {
-						if fi.IsDir() {
-							if err := watcher.Add(p); err == nil {
-								logger.Debug("Watch added", "dir", p)
-							}
-						} else {
-							ResetDebounceTimer(p)
-						}
-					}
-				}
-
-				if event.Has(fsnotify.Write) {
-					st, err := os.Stat(event.Name)
-					if err != nil {
-						logger.Warn("stat() returned error while checking file entry WRITE event")
-						continue
-					}
-
-					if !st.IsDir() {
-						ResetDebounceTimer(p)
-						logger.Debug("File modified", "path", p)
-					}
-				}
-
-				if event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename) {
-					RemoveModule(p)
-					err = watcher.Remove(p)
-					if err == nil {
-						logger.Debug("Watch removed", "path", p)
-					}
-				}
-
+				handleFSEvents(watcher, event)
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
@@ -94,4 +56,42 @@ func LookForChanges(rootpath string) {
 			}
 		}
 	}()
+}
+
+func handleFSEvents(watcher *fsnotify.Watcher, event fsnotify.Event) {
+	p := filepath.Clean(event.Name)
+	if event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) || event.Has(fsnotify.Chmod) {
+		fi, err := os.Stat(p)
+		if err == nil {
+			if fi.IsDir() {
+				if err := watcher.Add(p); err == nil {
+					logger.Debug("Watch added", "dir", p)
+				}
+			} else {
+				ResetDebounceTimer(p)
+			}
+		}
+	}
+
+	if event.Has(fsnotify.Write) {
+		st, err := os.Stat(event.Name)
+		if err != nil {
+			logger.Warn("stat() returned error while checking file entry WRITE event")
+			return
+		}
+
+		if !st.IsDir() {
+			ResetDebounceTimer(p)
+			logger.Debug("File modified", "path", p)
+		}
+	}
+
+	if event.Has(fsnotify.Remove) || event.Has(fsnotify.Rename) {
+		RemoveModule(p)
+		err := watcher.Remove(p)
+		if err == nil {
+			logger.Debug("Watch removed", "path", p)
+		}
+	}
+
 }
