@@ -5,9 +5,10 @@ import (
 )
 
 type Modtype int
+
 const (
 	MODTYPE_UNKNOWN Modtype = 0
-	MODTYPE_DYNLIB Modtype = 1
+	MODTYPE_DYNLIB  Modtype = 1
 )
 
 type ModuleI interface {
@@ -18,9 +19,10 @@ type ModuleI interface {
 }
 
 type Module struct {
-	handle uintptr
-	type_ Modtype
-	path string
+	handle   uintptr
+	type_    Modtype
+	path     string
+	origPath string
 	filename string
 }
 

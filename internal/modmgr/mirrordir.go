@@ -13,7 +13,7 @@ import (
 
 var (
 	mirrorMu  sync.Mutex
-	src2mod   = make(map[string]Module)
+	src2mod   = make(map[string]*Module)
 	mirrordir string
 )
 
@@ -36,14 +36,22 @@ func CreateModule(path string) {
 		return
 	}
 
-	mod := Module{
-		handle:   0,
-		type_:    extensionToModuleType(filepath.Ext(filepath.Base(path))),
-		path:     path,
-		filename: filepath.Base(path),
+	mirrorMu.Lock()
+	if mirrordir == "" {
+		logger.Error("Mirrordir has not yet been set!")
+		mirrorMu.Unlock()
+		return
 	}
 
-	mirrorMu.Lock()
+	filename := filepath.Base(path)
+	mod := &Module{
+		handle:   0,
+		type_:    extensionToModuleType(filepath.Ext(filepath.Base(path))),
+		origPath: path,
+		path:     filepath.Join(mirrordir, filename),
+		filename: filename,
+	}
+
 	src2mod[filepath.Clean(path)] = mod
 	mirrorMu.Unlock()
 	mod.Stage()
@@ -62,14 +70,13 @@ func ReloadModule(path string) {
 			logger.Error("Unable to unload module with", "path", path)
 		}
 
-		dst := filepath.Join(mirrordir, mod.filename)
 		mode := os.FileMode(0o644)
-		if fi, err := os.Stat(mod.path); err == nil {
+		if fi, err := os.Stat(mod.origPath); err == nil {
 			mode = fi.Mode()
 		}
 
-		if err := copyFileAtomic(mod.path, dst, mode); err != nil {
-			logger.Error("Could not copy file atomically", "src", mod.path, "dst", dst)
+		if err := copyFileAtomic(mod.origPath, mod.path, mode); err != nil {
+			logger.Error("Could not copy file atomically", "src", mod.origPath, "dst", mod.path)
 		}
 
 		mod.Load()
@@ -99,20 +106,18 @@ func RemoveModule(path string) {
 			logger.Error("Unable to unload module with", "path", path)
 		}
 	} else {
-		logger.Error("Unalbe to find and unload module with", "path", path)
+		logger.Error("Unable to find and unload module with", "path", path)
 	}
 	mirrorMu.Unlock()
 }
 
 func (mod *Module) Stage() error {
-	dst := filepath.Join(mirrordir, mod.filename)
-
 	mode := os.FileMode(0o644)
-	if fi, err := os.Stat(mod.path); err == nil {
+	if fi, err := os.Stat(mod.origPath); err == nil {
 		mode = fi.Mode()
 	}
 
-	if err := copyFileAtomic(mod.path, dst, mode); err != nil {
+	if err := copyFileAtomic(mod.origPath, mod.path, mode); err != nil {
 		return err
 	}
 
@@ -123,7 +128,7 @@ func (mod *Module) Stage() error {
 
 func (mod *Module) Unstage() error {
 	mod.Unload()
-	err := removeFileAtomic(filepath.Join(mirrordir, mod.filename))
+	err := removeFileAtomic(mod.path)
 	if err != nil {
 		return err
 	}
