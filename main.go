@@ -23,7 +23,7 @@ func main() {
 	config.ParseConfig("examples/c/hello_world/config.toml")
 	modmgr.SetMirrorDir("./mirrordir/")
 	modmgr.LookForChanges(ctx, "examples/c/hello_world/")
-	router.RunServer(":8080")
+	router.RunServer(ctx, ":8080")
 
 	<-ctx.Done()
 }

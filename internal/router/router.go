@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"net"
 	"omnirouter/internal/logger"
 	"strings"
@@ -29,7 +30,7 @@ type HTTPRouter interface {
 	Lookup(path string) (HTTPHandler, bool)
 }
 
-func Setup() {
+func setup() {
 	routerOnce.Do(func() {
 		routerInst = &radixRouter{tree: radix.New()}
 	})
@@ -93,8 +94,8 @@ func (r *radixRouter) Lookup(path string) (HTTPHandler, bool) {
 	return v.(HTTPHandler), true
 }
 
-func StartServer(addr string) (*fasthttp.Server, net.Listener, error) {
-	Setup()
+func startServer(addr string) (*fasthttp.Server, net.Listener, error) {
+	setup()
 
 	s := &fasthttp.Server{
 		Handler:                       dispatch,
@@ -116,24 +117,51 @@ func StartServer(addr string) (*fasthttp.Server, net.Listener, error) {
 	return s, ln, nil
 }
 
-func RunServer(addr string) error {
+func RunServer(ctx context.Context, addr string) error {
 	logger.Info("Running server on address", "addr", addr)
-	s, ln, err := StartServer(addr)
+	s, ln, err := startServer(addr)
 	if err != nil {
 		return err
 	}
-	return s.Serve(ln)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- s.Serve(ln)
+	}()
+
+	select {
+	case <-ctx.Done():
+		sdCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		err := s.ShutdownWithContext(sdCtx)
+		if err != nil {
+			logger.Warn("Server could not be shut down cleanly", "err", err)
+		}
+
+		if sdCtx.Err() == context.DeadlineExceeded {
+			_ = ln.Close()
+		}
+
+		select {
+		case <-serverErr:
+		case <-time.After(1 * time.Second):
+			logger.Warn("Server did not stop gracefully in time")
+		}
+		return ctx.Err()
+	case err := <-serverErr:
+		return err
+	}
 }
 
 func dispatch(ctx *fasthttp.RequestCtx) {
-    switch string(ctx.Path()) {
-    case "/favicon.ico":
-        ctx.SetStatusCode(fasthttp.StatusNoContent)
-        return
-    case "/robots.txt":
-        ctx.SetStatusCode(fasthttp.StatusNoContent)
-        return
-    }
+	switch string(ctx.Path()) {
+	case "/favicon.ico":
+		ctx.SetStatusCode(fasthttp.StatusNoContent)
+		return
+	case "/robots.txt":
+		ctx.SetStatusCode(fasthttp.StatusNoContent)
+		return
+	}
 
 	path := string(ctx.Path())
 	logger.Debug("Looking up handler for path", "path", path)
