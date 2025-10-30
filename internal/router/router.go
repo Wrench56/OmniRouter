@@ -27,6 +27,7 @@ type HTTPHandler interface {
 
 type HTTPRouter interface {
 	Register(path string, h HTTPHandler)
+	Unregister(path string)
 	Lookup(path string) (HTTPHandler, bool)
 }
 
@@ -74,6 +75,14 @@ func (r *radixRouter) Register(path string, h HTTPHandler) {
 
 	r.mu.Lock()
 	r.tree.Insert(p, h)
+	r.mu.Unlock()
+}
+
+func (r *radixRouter) Unregister(path string) {
+	p := normalize(path)
+
+	r.mu.Lock()
+	r.tree.Delete(p)
 	r.mu.Unlock()
 }
 
