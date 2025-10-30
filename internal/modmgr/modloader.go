@@ -32,10 +32,10 @@ func (h cHandler) Invoke(ctx router.ContextPtr, req router.RequestPtr) {
 	)
 }
 
-func (mod Module) Load() bool {
+func (mod *Module) Load() bool {
 	cpath := C.CString(mod.path)
 	defer C.free(unsafe.Pointer(cpath))
-	C.cffi_load_module(cpath)
+	mod.handle = C.cffi_load_module(cpath)
 	return true
 }
 
