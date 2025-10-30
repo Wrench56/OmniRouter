@@ -40,6 +40,7 @@ func (mod *Module) Load() bool {
 }
 
 func (mod Module) Unload() bool {
+	C.cffi_unload_module(mod.handle)
 	return true
 }
 
