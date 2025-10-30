@@ -124,6 +124,8 @@ inline static mod_handle_t cffi_unload_so(mod_handle_t handle) {
 
 #define LOAD_DLL_ERROR_MSG "Invalid module path: %s"
 #define GETPROCADDRESS_ERROR_MSG "GetProcAddress() error during \"init\" function loading (ERRNR: 0x%08x): %s"
+#define GETPROCADDRESS_UNINIT_ERROR_MSG "GetProcAddress() error during \"uninit\" function loading (ERRNR: 0x%08x): %s"
+#define FREE_DLL_ERROR_MSG "Unable to unload module with handle: 0x%08x"
 #define MAX_UINT64_HEX_LEN 8
 
 inline static mod_handle_t cffi_load_dll(char* path) {
@@ -155,8 +157,40 @@ inline static mod_handle_t cffi_load_dll(char* path) {
     }
 
     set_error(cffi_common_init_call(path, init_func));
-    return handle
+    return handle;
 }
+
+inline static mod_handle_t cffi_unload_dll(mod_handle_t handle) {
+    uninit_func_t uninit_func = (uninit_func_t) GetProcAddress(handle, "uninit");
+    if (uninit_func == NULL) {
+        DWORD error_nr = GetLastError();
+        char *msg = NULL;
+        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+             | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error_nr, 0, (LPSTR)&msg, 0, NULL);
+        uint32_t len = strlen(msg) + sizeof(GETPROCADDRESS_UNINIT_ERROR_MSG) + MAX_UINT64_HEX_LEN;
+        char* buf = _alloca(len);
+        _snprintf(buf, len, GETPROCADDRESS_UNINIT_ERROR_MSG, (unsigned)error_nr, msg ? msg : "unknown");
+        log_error(buf);
+        if (msg) LocalFree(msg);
+        set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
+    } else {
+        uninit_func();
+    }
+
+    if (FreeLibrary(handle) == false) {
+        DWORD error_nr = GetLastError();
+        char *msg = NULL;
+        uint32_t len = MAX_UINT64_HEX_LEN + sizeof(FREE_DLL_ERROR_MSG);
+        char* buf = _alloca(len);
+        _snprintf(buf, len, FREE_DLL_ERROR_MSG, handle);
+        log_error(buf);
+        set_error(LOADMOD_CLOSE_FAIL);
+    }
+
+    return ((void*) 0x1);
+}
+
+
 
 #endif
 
@@ -176,6 +210,8 @@ mod_handle_t cffi_load_module(char* path) {
 mod_handle_t cffi_unload_module(mod_handle_t handle) {
     #ifdef __linux__
         return cffi_unload_so(handle);
+    #elif _WIN32
+        return cffi_unload_dll(handle);
     #else
         log_error("Unsupported OS detected!");
     #endif
