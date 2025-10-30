@@ -45,7 +45,7 @@ func CreateModule(path string) {
 
 	filename := filepath.Base(path)
 	mod := &Module{
-		handle:   0,
+		handle:   nil,
 		type_:    extensionToModuleType(filepath.Ext(filepath.Base(path))),
 		origPath: path,
 		path:     filepath.Join(mirrordir, filename),

@@ -1,4 +1,12 @@
+//go:build cgo
+
 package modmgr
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/bridges
+#include "bridges/cffi.h"
+*/
+import "C"
 
 import (
 	"path/filepath"
@@ -19,7 +27,7 @@ type ModuleI interface {
 }
 
 type Module struct {
-	handle   uintptr
+	handle   C.mod_handle_t
 	type_    Modtype
 	path     string
 	origPath string
