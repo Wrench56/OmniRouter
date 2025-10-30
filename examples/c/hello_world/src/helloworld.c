@@ -15,3 +15,7 @@ bool init(const or_api_t* api) {
     loginfo_ = api->loginfo;
     return true;
 }
+
+bool uninit() {
+    return true;
+}
