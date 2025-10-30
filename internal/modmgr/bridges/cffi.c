@@ -65,6 +65,8 @@ inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_f
 
 #define LOAD_SO_ERROR_MSG "Invalid module path: %s"
 #define DLSYM_ERROR_MSG "dlsym() error during \"init\" function loading: %s"
+#define DLSYM_UNINIT_ERROR_MSG "dlsym() error during \"uninit\" function loading: %s"
+#define DLCLOSE_ERROR_MSG "dlclose() error when closing module!"
 
 inline static mod_handle_t cffi_load_so(char* path) {
     void* handle = dlopen(path, RTLD_NOW);
@@ -94,6 +96,28 @@ inline static mod_handle_t cffi_load_so(char* path) {
 
     set_error(cffi_common_init_call(path, init_func));
     return handle;
+}
+
+inline static mod_handle_t cffi_unload_so(mod_handle_t handle) {
+    uninit_func_t uninit_func = (uninit_func_t) dlsym(handle, "uninit");
+    char* error = dlerror();
+    if (error != NULL) {
+        uint32_t len = strlen(error) + sizeof(DLSYM_UNINIT_ERROR_MSG);
+        char* buf = alloca(len);
+        snprintf(buf, len, DLSYM_UNINIT_ERROR_MSG, error);
+        log_error(buf);
+        set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
+    } else {
+        uninit_func();
+    }
+
+    if (dlclose(handle) != 0) {
+        log_error(DLCLOSE_ERROR_MSG);
+        set_error(LOADMOD_CLOSE_FAIL);
+
+    }
+
+    return ((void*) 0x1);
 }
 
 #elif defined(_WIN32)

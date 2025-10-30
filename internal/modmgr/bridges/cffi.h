@@ -30,7 +30,9 @@ typedef enum {
     LOADMOD_SUCCESS = 0,
     LOADMOD_UNSUPPORTED_OS,
     LOADMOD_NO_SUCH_MOD,
+    LOADMOD_CLOSE_FAIL,
     LOADMOD_NO_VALID_INIT_FUNC,
+    LOADMOD_NO_VALID_UNINIT_FUNC,
     LOADMOD_INIT_FUNC_STATE_FAIL
 } loadmod_err_t;
 
@@ -62,6 +64,7 @@ typedef struct {
 } health_struct_t;
 
 typedef bool (*init_func_t)(const or_api_t* api);
+typedef bool (*uninit_func_t)();
 
 /* Exported functions from modmgr.go */
 extern uint64_t or_register_http(char* path, or_http_handler_t handler, void* extra);
@@ -85,6 +88,7 @@ extern uint64_t or_register_http(char* path, or_http_handler_t handler, void* ex
 /* cffi.c exports */
 bool cffi_health(void);
 mod_handle_t cffi_load_module(char* path);
+mod_handle_t cffi_unload_module(mod_handle_t handle);
 void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* req, void* extra);
 loadmod_err_t get_error(void);
 
