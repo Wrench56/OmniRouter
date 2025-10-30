@@ -14,6 +14,8 @@ static or_api_t api = {
     .register_http = or_register_http
 };
 
+static loadmod_err_t error_reg;
+
 bool cffi_health(void) {
 #ifdef __WIN32__
     return true;
@@ -26,6 +28,14 @@ bool cffi_health(void) {
 #else
     return false;
 #endif
+}
+
+loadmod_err_t get_error(void) {
+    return error_reg;
+}
+
+inline static void set_error(loadmod_err_t error) {
+    error_reg = error;
 }
 
 void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* req, void* extra) {
@@ -56,14 +66,15 @@ inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_f
 #define LOAD_SO_ERROR_MSG "Invalid module path: %s"
 #define DLSYM_ERROR_MSG "dlsym() error during \"init\" function loading: %s"
 
-inline static loadmod_err_t cffi_load_so(char* path) {
+inline static mod_handle_t cffi_load_so(char* path) {
     void* handle = dlopen(path, RTLD_NOW);
     if (!handle) {
         uint32_t len = strlen(path) + sizeof(LOAD_SO_ERROR_MSG);
         char* buf = alloca(len);
         snprintf(buf, len, LOAD_SO_ERROR_MSG, path);
         log_error(buf);
-        return LOADMOD_NO_SUCH_MOD;
+        set_error(LOADMOD_NO_SUCH_MOD);
+        return NULL;
     }
 
     /* Clear errors */
@@ -77,18 +88,21 @@ inline static loadmod_err_t cffi_load_so(char* path) {
         char* buf = alloca(len);
         snprintf(buf, len, DLSYM_ERROR_MSG, error);
         log_error(buf);
-        return LOADMOD_NO_VALID_INIT_FUNC;
+        set_error(LOADMOD_NO_VALID_INIT_FUNC);
+        return handle;
     }
 
-    return cffi_common_init_call(path, init_func);
+    set_error(cffi_common_init_call(path, init_func));
+    return handle;
 }
+
 #elif defined(_WIN32)
 
 #define LOAD_DLL_ERROR_MSG "Invalid module path: %s"
 #define GETPROCADDRESS_ERROR_MSG "GetProcAddress() error during \"init\" function loading (ERRNR: 0x%08x): %s"
 #define MAX_UINT64_HEX_LEN 8
 
-inline static loadmod_err_t cffi_load_dll(char* path) {
+inline static mod_handle_t cffi_load_dll(char* path) {
     HMODULE handle = LoadLibraryExA(path, NULL, 0x0);
     if (handle == NULL) {
         DWORD error_nr = GetLastError();
@@ -97,7 +111,8 @@ inline static loadmod_err_t cffi_load_dll(char* path) {
         char* buf = _alloca(len);
         _snprintf(buf, len, LOAD_DLL_ERROR_MSG, path);
         log_error(buf);
-        return LOADMOD_NO_SUCH_MOD;
+        set_error(LOADMOD_NO_SUCH_MOD);
+        return NULL;
     }
 
     init_func_t init_func = (init_func_t) GetProcAddress(handle, "init");
@@ -111,15 +126,17 @@ inline static loadmod_err_t cffi_load_dll(char* path) {
         _snprintf(buf, len, GETPROCADDRESS_ERROR_MSG, (unsigned)error_nr, msg ? msg : "unknown");
         log_error(buf);
         if (msg) LocalFree(msg);
-        return LOADMOD_NO_VALID_INIT_FUNC;
+        set_error(LOADMOD_NO_VALID_INIT_FUNC);
+        return handle;
     }
 
-    return cffi_common_init_call(path, init_func);
+    set_error(cffi_common_init_call(path, init_func));
+    return handle
 }
 
 #endif
 
-loadmod_err_t cffi_load_module(char* path) {
+mod_handle_t cffi_load_module(char* path) {
     #ifdef __linux__
         return cffi_load_so(path);
     #elif _WIN32
@@ -128,5 +145,17 @@ loadmod_err_t cffi_load_module(char* path) {
         log_error("Unsupported OS detected!");
     #endif
 
-    return LOADMOD_UNSUPPORTED_OS;
+    set_error(LOADMOD_UNSUPPORTED_OS);
+    return NULL;
+}
+
+mod_handle_t cffi_unload_module(mod_handle_t handle) {
+    #ifdef __linux__
+        return cffi_unload_so(handle);
+    #else
+        log_error("Unsupported OS detected!");
+    #endif
+
+    set_error(LOADMOD_UNSUPPORTED_OS);
+    return 0;
 }

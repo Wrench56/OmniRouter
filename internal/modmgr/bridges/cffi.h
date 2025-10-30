@@ -69,17 +69,23 @@ extern uint64_t or_register_http(char* path, or_http_handler_t handler, void* ex
 #ifdef __linux__
     #include <dlfcn.h>
     #include <alloca.h>
+    
+    typedef void* mod_handle_t;
+
 #elif _WIN32
     #include <malloc.h>
     #include <libloaderapi.h>
     #include <errhandlingapi.h>
     #include <windows.h>
     #include <winbase.h>
+
+    typedef HMODULE mod_handle_t;
 #endif
 
 /* cffi.c exports */
 bool cffi_health(void);
-loadmod_err_t cffi_load_module(char* path);
+mod_handle_t cffi_load_module(char* path);
 void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* req, void* extra);
+loadmod_err_t get_error(void);
 
 #endif // CFFI_H
