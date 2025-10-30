@@ -11,7 +11,8 @@ static or_api_t api = {
     .logwarn  = logwarn,
     .logerror = logerror,
     .logfatal = logfatal,
-    .register_http = or_register_http
+    .register_http = or_register_http,
+    .unregister_http = or_unregister_http
 };
 
 static loadmod_err_t error_reg;
@@ -108,7 +109,7 @@ inline static mod_handle_t cffi_unload_so(mod_handle_t handle) {
         log_error(buf);
         set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
     } else {
-        uninit_func();
+        uninit_func(&api);
     }
 
     if (dlclose(handle) != 0) {
@@ -174,7 +175,7 @@ inline static mod_handle_t cffi_unload_dll(mod_handle_t handle) {
         if (msg) LocalFree(msg);
         set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
     } else {
-        uninit_func();
+        uninit_func(&api);
     }
 
     if (FreeLibrary(handle) == false) {
