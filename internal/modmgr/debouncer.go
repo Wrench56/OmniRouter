@@ -18,7 +18,7 @@ func ResetDebounceTimer(path string) {
 		return
 	}
 
-	key, _ := filepath.Abs(path)
+	key := filepath.Clean(path)
 	debMu.Lock()
 	timer := path2timer[key]
 	if timer == nil {

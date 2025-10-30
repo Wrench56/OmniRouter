@@ -101,7 +101,7 @@ func RemoveModule(path string) {
 	if ok {
 		err := mod.Unstage()
 		if err == nil {
-			delete(src2mod, path)
+			delete(src2mod, filepath.Clean(path))
 		} else {
 			logger.Error("Unable to unload module with", "path", path)
 		}
