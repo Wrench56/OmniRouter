@@ -99,7 +99,7 @@ inline static mod_handle_t cffi_load_so(char* path) {
     return handle;
 }
 
-inline static mod_handle_t cffi_unload_so(mod_handle_t handle) {
+inline static void cffi_unload_so(mod_handle_t handle) {
     uninit_func_t uninit_func = (uninit_func_t) dlsym(handle, "uninit");
     char* error = dlerror();
     if (error != NULL) {
@@ -117,8 +117,6 @@ inline static mod_handle_t cffi_unload_so(mod_handle_t handle) {
         set_error(LOADMOD_CLOSE_FAIL);
 
     }
-
-    return ((void*) 0x1);
 }
 
 #elif defined(_WIN32)
@@ -161,7 +159,7 @@ inline static mod_handle_t cffi_load_dll(char* path) {
     return handle;
 }
 
-inline static mod_handle_t cffi_unload_dll(mod_handle_t handle) {
+inline static void cffi_unload_dll(mod_handle_t handle) {
     uninit_func_t uninit_func = (uninit_func_t) GetProcAddress(handle, "uninit");
     if (uninit_func == NULL) {
         DWORD error_nr = GetLastError();
@@ -187,8 +185,6 @@ inline static mod_handle_t cffi_unload_dll(mod_handle_t handle) {
         log_error(buf);
         set_error(LOADMOD_CLOSE_FAIL);
     }
-
-    return ((void*) 0x1);
 }
 
 
@@ -208,15 +204,14 @@ mod_handle_t cffi_load_module(char* path) {
     return NULL;
 }
 
-mod_handle_t cffi_unload_module(mod_handle_t handle) {
+void cffi_unload_module(mod_handle_t handle) {
     #ifdef __linux__
-        return cffi_unload_so(handle);
+        cffi_unload_so(handle);
     #elif _WIN32
-        return cffi_unload_dll(handle);
+        cffi_unload_dll(handle);
     #else
         log_error("Unsupported OS detected!");
     #endif
 
     set_error(LOADMOD_UNSUPPORTED_OS);
-    return 0;
 }
