@@ -6,4 +6,5 @@ type Config struct {
 
 type Modules struct {
 	Path string
+	Mirrorlib string
 }

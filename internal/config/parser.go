@@ -20,6 +20,11 @@ func ParseConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("missing required setting: modules.path")
 	}
 
+	if cfg.Modules.Mirrorlib == "" {
+		logger.Warn("Missing mirrorlib path, defaulting to cwd")
+		cfg.Modules.Mirrorlib = "./mirrordir"
+	}
+
 	if undec := meta.Undecoded(); len(undec) > 0 {
 		for _, k := range undec {
 			logger.Warn(fmt.Sprintf("Unrecognized configuration key: %s", k.String()))
