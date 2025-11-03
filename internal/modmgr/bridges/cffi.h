@@ -59,8 +59,8 @@ typedef struct {
     void (*logwarn)(char* msg, char* module_);
     void (*logerror)(char* msg, char* module_);
     void (*logfatal)(char* msg, char* module_);
-    uint64_t (*register_http)(char* path, or_http_handler_t handler, void* extra);
-    void (*unregister_http)(char* path);
+    uint64_t (*register_http)(muid_t muid, char* path, or_http_handler_t handler, void* extra);
+    void (*unregister_http)(muid_t muid, char* path);
 } or_api_t;
 
 typedef struct {
@@ -71,8 +71,8 @@ typedef bool (*init_func_t)(const or_api_t* api);
 typedef bool (*uninit_func_t)(const or_api_t* api);
 
 /* Exported functions from modmgr.go */
-extern uint64_t or_register_http(char* path, or_http_handler_t handler, void* extra);
-extern void or_unregister_http(char* path);
+extern uint64_t or_register_http(muid_t muid, char* path, or_http_handler_t handler, void* extra);
+extern void or_unregister_http(muid_t muid, char* path);
 
 #ifdef __linux__
     #include <dlfcn.h>

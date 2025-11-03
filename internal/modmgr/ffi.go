@@ -16,7 +16,7 @@ import (
 )
 
 //export or_register_http
-func or_register_http(path *C.char, handler C.or_http_handler_t, extra unsafe.Pointer) C.uint64_t {
+func or_register_http(muid C.muid_t, path *C.char, handler C.or_http_handler_t, extra unsafe.Pointer) C.uint64_t {
 	goPath := C.GoString(path)
 	logger.Info("Added new HTTP handler for path ", "path", goPath)
 	router.GetHTTPRouter().Register(goPath, cHandler{fn: handler, extra: extra})
@@ -24,7 +24,7 @@ func or_register_http(path *C.char, handler C.or_http_handler_t, extra unsafe.Po
 }
 
 //export or_unregister_http
-func or_unregister_http(path *C.char) {
+func or_unregister_http(muid C.muid_t, path *C.char) {
 	goPath := C.GoString(path)
 	logger.Info("Unregistered HTTP handler for path", "path", goPath)
 	router.GetHTTPRouter().Unregister(goPath)
