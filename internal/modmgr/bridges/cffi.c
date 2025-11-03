@@ -7,6 +7,7 @@
 
 static or_api_t api = {
     .version  = MODLOADER_VERSION,
+    .muid     = 0,
     .loginfo  = loginfo,
     .logwarn  = logwarn,
     .logerror = logerror,
@@ -43,10 +44,18 @@ void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* re
     fn(ctx, req, extra);
 }
 
+inline static void cffi_create_api_struct(or_api_t* module_api, muid_t muid) {
+    memcpy(module_api, &api, sizeof(or_api_t));
+    module_api->muid = muid;
+}
+
 #define INIT_FUNC_FAIL "Warning: init function for \"%s\" returned false (failed state)"
 
-inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_func) {
+inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_func, muid_t muid) {
     loadmod_err_t ret = LOADMOD_SUCCESS;
+
+    or_api_t module_api = { 0 };
+    cffi_create_api_struct(&module_api, muid);
 
     /* Call init function */
     bool success = init_func(&api);
@@ -69,7 +78,7 @@ inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_f
 #define DLSYM_UNINIT_ERROR_MSG "dlsym() error during \"uninit\" function loading: %s"
 #define DLCLOSE_ERROR_MSG "dlclose() error when closing module!"
 
-inline static mod_handle_t cffi_load_so(char* path) {
+inline static mod_handle_t cffi_load_so(char* path, muid_t muid) {
     void* handle = dlopen(path, RTLD_NOW);
     if (!handle) {
         uint32_t len = strlen(path) + sizeof(LOAD_SO_ERROR_MSG);
@@ -95,7 +104,7 @@ inline static mod_handle_t cffi_load_so(char* path) {
         return handle;
     }
 
-    set_error(cffi_common_init_call(path, init_func));
+    set_error(cffi_common_init_call(path, init_func, muid));
     return handle;
 }
 
@@ -127,7 +136,7 @@ inline static void cffi_unload_so(mod_handle_t handle) {
 #define FREE_DLL_ERROR_MSG "Unable to unload module with handle: 0x%08x"
 #define MAX_UINT64_HEX_LEN 8
 
-inline static mod_handle_t cffi_load_dll(char* path) {
+inline static mod_handle_t cffi_load_dll(char* path, muid_t muid) {
     HMODULE handle = LoadLibraryExA(path, NULL, 0x0);
     if (handle == NULL) {
         DWORD error_nr = GetLastError();
@@ -155,7 +164,7 @@ inline static mod_handle_t cffi_load_dll(char* path) {
         return handle;
     }
 
-    set_error(cffi_common_init_call(path, init_func));
+    set_error(cffi_common_init_call(path, init_func, muid));
     return handle;
 }
 
@@ -191,11 +200,11 @@ inline static void cffi_unload_dll(mod_handle_t handle) {
 
 #endif
 
-mod_handle_t cffi_load_module(char* path) {
+mod_handle_t cffi_load_module(char* path, muid_t muid) {
     #ifdef __linux__
-        return cffi_load_so(path);
+        return cffi_load_so(path, muid);
     #elif _WIN32
-        return cffi_load_dll(path);
+        return cffi_load_dll(path, muid);
     #else
         log_error("Unsupported OS detected!");
     #endif

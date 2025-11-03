@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MODLOADER_VERSION 3
+#define MODLOADER_VERSION 4
 #define MAX_VERSION_LENGTH 20
 
 /* Exported functions from logger_cffi.go */
@@ -36,6 +36,8 @@ typedef enum {
     LOADMOD_INIT_FUNC_STATE_FAIL
 } loadmod_err_t;
 
+typedef uint64_t muid_t;
+
 typedef struct {
 
 } or_ctx_t;
@@ -52,6 +54,7 @@ typedef void (*or_http_handler_t)(
 
 typedef struct {
     uint64_t version;
+    muid_t muid;
     void (*loginfo)(char* msg, char* module_);
     void (*logwarn)(char* msg, char* module_);
     void (*logerror)(char* msg, char* module_);
@@ -89,7 +92,7 @@ extern void or_unregister_http(char* path);
 
 /* cffi.c exports */
 bool cffi_health(void);
-mod_handle_t cffi_load_module(char* path);
+mod_handle_t cffi_load_module(char* path, muid_t muid);
 void cffi_unload_module(mod_handle_t handle);
 void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* req, void* extra);
 loadmod_err_t get_error(void);
