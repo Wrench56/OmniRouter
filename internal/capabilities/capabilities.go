@@ -10,6 +10,6 @@ const (
 	CAP_HTTP_UNREGISTER        Capabilities = 1 << 4
 )
 
-func hasCapability(capset Capabilities, capabilities Capabilities) bool {
+func HasCapabilities(capset Capabilities, capabilities Capabilities) bool {
 	return (capset & capabilities) != 0
 }
