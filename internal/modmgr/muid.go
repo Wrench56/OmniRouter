@@ -35,3 +35,15 @@ func generateMUID64(module *Module) MUID {
 	logger.Error("Couldn't create unique module ID in 10 tries, returning invalid UUID")
 	return 0
 }
+
+func MUID2Module(muid MUID) *Module {
+	v, ok := muidMap.Load(muid)
+	if ok {
+		mod, ok := v.(*Module)
+		if ok {
+			return mod
+		}
+	}
+	logger.Error("MUID lookup failed", "muid", muid)
+	return nil
+}
