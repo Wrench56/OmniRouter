@@ -28,7 +28,7 @@ type ModuleI interface {
 
 type Module struct {
 	handle   C.mod_handle_t
-	muid	 uint64
+	muid     MUID
 	type_    Modtype
 	path     string
 	origPath string
