@@ -29,6 +29,7 @@ rules:
       - bridges
       - examples
       - router
+      - caps
   subject-empty:
     level: error
   type:
