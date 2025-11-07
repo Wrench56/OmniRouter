@@ -65,10 +65,16 @@ func NewHTTPRouter() HTTPRouter {
 }
 
 func (r *radixRouter) Register(caps capabilities.Capabilities, path string, h HTTPHandler) {
+	if !capabilities.HasCapabilities(caps, capabilities.CAP_HTTP_REGISTER) {
+		return
+	}
 
 	p := normalize(path)
 
 	if strings.HasSuffix(p, "*") {
+		if !capabilities.HasCapabilities(caps, capabilities.CAP_HTTP_REGISTER_WILDCARD) {
+			return
+		}
 		p = strings.TrimSuffix(p, "*")
 		if !strings.HasSuffix(p, "/") {
 			p += "/"
@@ -81,6 +87,9 @@ func (r *radixRouter) Register(caps capabilities.Capabilities, path string, h HT
 }
 
 func (r *radixRouter) Unregister(caps capabilities.Capabilities, path string) {
+	if !capabilities.HasCapabilities(caps, capabilities.CAP_HTTP_UNREGISTER) {
+		return
+	}
 	p := normalize(path)
 
 	r.mu.Lock()
