@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"net"
+	"omnirouter/internal/capabilities"
 	"omnirouter/internal/logger"
 	"strings"
 	"sync"
@@ -26,8 +27,8 @@ type HTTPHandler interface {
 }
 
 type HTTPRouter interface {
-	Register(path string, h HTTPHandler)
-	Unregister(path string)
+	Register(caps capabilities.Capabilities, path string, h HTTPHandler)
+	Unregister(caps capabilities.Capabilities, path string)
 	Lookup(path string) (HTTPHandler, bool)
 }
 
@@ -63,7 +64,8 @@ func NewHTTPRouter() HTTPRouter {
 	return &radixRouter{tree: radix.New()}
 }
 
-func (r *radixRouter) Register(path string, h HTTPHandler) {
+func (r *radixRouter) Register(caps capabilities.Capabilities, path string, h HTTPHandler) {
+
 	p := normalize(path)
 
 	if strings.HasSuffix(p, "*") {
@@ -78,7 +80,7 @@ func (r *radixRouter) Register(path string, h HTTPHandler) {
 	r.mu.Unlock()
 }
 
-func (r *radixRouter) Unregister(path string) {
+func (r *radixRouter) Unregister(caps capabilities.Capabilities, path string) {
 	p := normalize(path)
 
 	r.mu.Lock()
