@@ -43,7 +43,7 @@ func InitMUID64Map() {
 	muidMap.Store(0, 0)
 }
 
-func generateMUID64() uint64 {
+func generateMUID64(module *Module) uint64 {
 	var b [8]byte
 	for i := 0; i < 10; i++ {
 		_, err := rand.Read(b[:])
@@ -53,7 +53,7 @@ func generateMUID64() uint64 {
 		muid := binary.BigEndian.Uint64(b[:])
 		_, ok := muidMap.Load(muid)
 		if !ok {
-			muidMap.Store(muid, 0)
+			muidMap.Store(muid, module)
 			return muid
 		}
 	}
@@ -66,7 +66,7 @@ func (mod *Module) Load() bool {
 	cpath := C.CString(mod.path)
 	defer C.free(unsafe.Pointer(cpath))
 	
-	muid := generateMUID64()
+	muid := generateMUID64(mod)
 	mod.muid = muid
 	mod.handle = C.cffi_load_module(cpath, C.muid_t(mod.muid))
 	return true
