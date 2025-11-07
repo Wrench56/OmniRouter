@@ -9,6 +9,7 @@ package modmgr
 import "C"
 
 import (
+	"omnirouter/internal/capabilities"
 	"path/filepath"
 )
 
@@ -27,12 +28,13 @@ type ModuleI interface {
 }
 
 type Module struct {
-	handle   C.mod_handle_t
-	muid     MUID
-	type_    Modtype
-	path     string
-	origPath string
-	filename string
+	handle       C.mod_handle_t
+	capabilities capabilities.Capabilities
+	muid         MUID
+	type_        Modtype
+	path         string
+	origPath     string
+	filename     string
 }
 
 func extensionToModuleType(ext string) Modtype {
