@@ -58,7 +58,7 @@ inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_f
     cffi_create_api_struct(&module_api, muid);
 
     /* Call init function */
-    bool success = init_func(&api);
+    bool success = init_func(&module_api);
     if (!success) {
         uint32_t len = strlen(path) + sizeof(INIT_FUNC_FAIL);
         char* buf = alloca(len);
