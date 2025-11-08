@@ -19,7 +19,7 @@ func InitMUID64Map() {
 
 func generateMUID64(module *Module) MUID {
 	var b [8]byte
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_, err := rand.Read(b[:])
 		if err != nil {
 			continue
