@@ -3,7 +3,7 @@ package capabilities
 type Capabilities uint64
 
 const (
-	cAP_NONE                   Capabilities = 0
+	CAP_NONE                   Capabilities = 0
 	CAP_LOGGING                Capabilities = 1 << 1
 	CAP_LOGGING_FATAL          Capabilities = 1 << 2
 	CAP_HTTP_REGISTER          Capabilities = 1 << 3
