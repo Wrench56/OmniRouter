@@ -5,6 +5,7 @@ import (
 	"net"
 	"omnirouter/internal/capabilities"
 	"omnirouter/internal/logger"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -25,10 +26,33 @@ type HTTPHandler interface {
 	Invoke(ctx ContextPtr, req RequestPtr)
 }
 
+type HandlerTable struct {
+	Handlers [methodCount]HTTPHandler
+}
+
+func execForMethodBit(fn func(int), method_mask uint8) {
+	if method_mask == METHOD_UNKNOWN {
+		return
+	}
+
+	if method_mask == METHOD_ANY {
+		for i := range methodCount {
+			fn(i)
+		}
+		return
+	}
+
+	for i := range methodCount {
+		if method_mask&(1<<i) != 0 {
+			fn(i)
+		}
+	}
+}
+
 type HTTPRouter interface {
-	Register(caps capabilities.Capabilities, path string, h HTTPHandler) uint64
-	Unregister(caps capabilities.Capabilities, path string) uint64
-	Lookup(path string) (HTTPHandler, bool)
+	Register(caps capabilities.Capabilities, methodMask uint8, path string, h HTTPHandler) uint64
+	Unregister(caps capabilities.Capabilities, methodMask uint8, path string) uint64
+	Lookup(path string) (HandlerTable, bool)
 }
 
 func setup() {
@@ -44,14 +68,24 @@ func normalize(p string) string {
 	if p[0] != '/' {
 		p = "/" + p
 	}
+
+	for len(p) > 1 && p[len(p)-1] == '/' {
+		p = p[:len(p)-1]
+	}
+
 	return p
 }
 
 func GetHTTPRouter() HTTPRouter {
 	routerOnce.Do(func() {
-		routerInst = &radixRouter{tree: radix.New()}
+		routerInst = NewHTTPRouter()
 	})
 	return routerInst
+}
+
+type routeEntry struct {
+	table    HandlerTable
+	wildcard bool
 }
 
 type radixRouter struct {
@@ -63,26 +97,51 @@ func NewHTTPRouter() HTTPRouter {
 	return &radixRouter{tree: radix.New()}
 }
 
-func (r *radixRouter) Lookup(path string) (HTTPHandler, bool) {
-	p := normalize(path)
-
+func (r *radixRouter) getOrCreate(path string) *routeEntry {
+	key := normalize(path)
 	r.mu.RLock()
-	if v, ok := r.tree.Get(p); ok {
+	if v, ok := r.tree.Get(key); ok {
 		r.mu.RUnlock()
-		return v.(HTTPHandler), true
+		return v.(*routeEntry)
+	}
+	r.mu.RUnlock()
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if v, ok := r.tree.Get(key); ok {
+		return v.(*routeEntry)
+	}
+	re := &routeEntry{}
+	r.tree.Insert(key, re)
+	return re
+}
+
+func (r *radixRouter) Lookup(path string) (HandlerTable, bool) {
+	raw := normalize(path)
+	r.mu.RLock()
+	if v, ok := r.tree.Get(raw); ok {
+		out := v.(*routeEntry).table
+		r.mu.RUnlock()
+		return out, true
 	}
 
-	_, v, ok := r.tree.LongestPrefix(p)
+	key, v, ok := r.tree.LongestPrefix(raw)
 	r.mu.RUnlock()
 	if !ok {
-		return nil, false
+		return HandlerTable{}, false
 	}
-	return v.(HTTPHandler), true
+	re := v.(*routeEntry)
+	if !re.wildcard {
+		return HandlerTable{}, false
+	}
+	if key == "/" || raw == key || strings.HasPrefix(raw, key+"/") {
+		return re.table, true
+	}
+	return HandlerTable{}, false
 }
 
 func startServer(addr string) (*fasthttp.Server, net.Listener, error) {
 	setup()
-
 	s := &fasthttp.Server{
 		Handler:                       dispatch,
 		NoDefaultServerHeader:         true,
@@ -95,7 +154,6 @@ func startServer(addr string) (*fasthttp.Server, net.Listener, error) {
 		ReadBufferSize:                4096,
 		WriteBufferSize:               4096,
 	}
-
 	ln, err := net.Listen("tcp4", addr)
 	if err != nil {
 		return nil, nil, err
@@ -110,24 +168,18 @@ func RunServer(ctx context.Context, addr string) error {
 		return err
 	}
 	serverErr := make(chan error, 1)
-	go func() {
-		serverErr <- s.Serve(ln)
-	}()
+	go func() { serverErr <- s.Serve(ln) }()
 
 	select {
 	case <-ctx.Done():
 		sdCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-
-		err := s.ShutdownWithContext(sdCtx)
-		if err != nil {
+		if err := s.ShutdownWithContext(sdCtx); err != nil {
 			logger.Warn("Server could not be shut down cleanly", "err", err)
 		}
-
 		if sdCtx.Err() == context.DeadlineExceeded {
 			_ = ln.Close()
 		}
-
 		select {
 		case <-serverErr:
 		case <-time.After(1 * time.Second):
@@ -141,22 +193,45 @@ func RunServer(ctx context.Context, addr string) error {
 
 func dispatch(ctx *fasthttp.RequestCtx) {
 	switch string(ctx.Path()) {
-	case "/favicon.ico":
-		ctx.SetStatusCode(fasthttp.StatusNoContent)
-		return
-	case "/robots.txt":
+	case "/favicon.ico", "/robots.txt":
 		ctx.SetStatusCode(fasthttp.StatusNoContent)
 		return
 	}
 
 	path := string(ctx.Path())
-	logger.Debug("Looking up handler for path", "path", path)
+	logger.Debug("Looking up handlers for path", "path", path)
 
-	h, ok := GetHTTPRouter().Lookup(path)
+	table, ok := GetHTTPRouter().Lookup(path)
 	if !ok {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		return
 	}
 
-	h.Invoke(ContextPtr(unsafe.Pointer(ctx)), RequestPtr(nil))
+	var methodBit uint8
+	switch string(ctx.Method()) {
+	case fasthttp.MethodGet:
+		methodBit = METHOD_GET
+	case fasthttp.MethodHead:
+		methodBit = METHOD_HEAD
+	case fasthttp.MethodPost:
+		methodBit = METHOD_POST
+	case fasthttp.MethodPut:
+		methodBit = METHOD_PUT
+	case fasthttp.MethodDelete:
+		methodBit = METHOD_DELETE
+	case fasthttp.MethodPatch:
+		methodBit = METHOD_PATCH
+	case fasthttp.MethodOptions:
+		methodBit = METHOD_OPTIONS
+	default:
+		methodBit = METHOD_UNKNOWN
+	}
+
+	execForMethodBit(func(i int) {
+		if table.Handlers[i] == nil {
+			return
+		}
+
+		table.Handlers[i].Invoke(ContextPtr(ctx), RequestPtr(nil))
+	}, methodBit)
 }
