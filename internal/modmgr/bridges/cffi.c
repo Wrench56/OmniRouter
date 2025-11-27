@@ -108,7 +108,7 @@ inline static mod_handle_t cffi_load_so(char* path, muid_t muid) {
     return handle;
 }
 
-inline static void cffi_unload_so(mod_handle_t handle) {
+inline static void cffi_unload_so(mod_handle_t handle, muid_t muid) {
     uninit_func_t uninit_func = (uninit_func_t) dlsym(handle, "uninit");
     char* error = dlerror();
     if (error != NULL) {
@@ -118,13 +118,14 @@ inline static void cffi_unload_so(mod_handle_t handle) {
         log_error(buf);
         set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
     } else {
-        uninit_func(&api);
+        or_api_t module_api = { 0 };
+        cffi_create_api_struct(&module_api, muid);
+        uninit_func(&module_api);
     }
 
     if (dlclose(handle) != 0) {
         log_error(DLCLOSE_ERROR_MSG);
         set_error(LOADMOD_CLOSE_FAIL);
-
     }
 }
 
@@ -168,7 +169,7 @@ inline static mod_handle_t cffi_load_dll(char* path, muid_t muid) {
     return handle;
 }
 
-inline static void cffi_unload_dll(mod_handle_t handle) {
+inline static void cffi_unload_dll(mod_handle_t handle, muid_t muid) {
     uninit_func_t uninit_func = (uninit_func_t) GetProcAddress(handle, "uninit");
     if (uninit_func == NULL) {
         DWORD error_nr = GetLastError();
@@ -182,7 +183,9 @@ inline static void cffi_unload_dll(mod_handle_t handle) {
         if (msg) LocalFree(msg);
         set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
     } else {
-        uninit_func(&api);
+        or_api_t module_api = { 0 };
+        cffi_create_api_struct(&module_api, muid);
+        uninit_func(&module_api);
     }
 
     if (FreeLibrary(handle) == false) {
@@ -213,11 +216,11 @@ mod_handle_t cffi_load_module(char* path, muid_t muid) {
     return NULL;
 }
 
-void cffi_unload_module(mod_handle_t handle) {
+void cffi_unload_module(mod_handle_t handle, muid_t muid) {
     #ifdef __linux__
-        cffi_unload_so(handle);
+        cffi_unload_so(handle, muid);
     #elif _WIN32
-        cffi_unload_dll(handle);
+        cffi_unload_dll(handle, muid);
     #else
         log_error("Unsupported OS detected!");
     #endif
