@@ -42,6 +42,6 @@ func (mod *Module) Load() bool {
 }
 
 func (mod Module) Unload() bool {
-	C.cffi_unload_module(mod.handle)
+	C.cffi_unload_module(mod.handle, C.muid_t(mod.muid))
 	return true
 }
