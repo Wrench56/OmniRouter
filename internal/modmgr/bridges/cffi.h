@@ -36,6 +36,18 @@ typedef enum {
     LOADMOD_INIT_FUNC_STATE_FAIL
 } loadmod_err_t;
 
+typedef enum {
+    OR_METHOD_UNKNOWN = 0,
+    OR_METHOD_GET = 1 << 1,
+    OR_METHOD_HEAD = 1 << 2,
+    OR_METHOD_POST = 1 << 3,
+    OR_METHOD_PUT = 1 << 4,
+    OR_METHOD_DELETE = 1 << 5,
+    OR_METHOD_PATCH = 1 << 6,
+    OR_METHOD_OPTIONS = 1 << 7,
+    OR_METHOD_ANY = ~((uint8_t) 0)
+} or_method_t;
+
 typedef uint64_t muid_t;
 
 typedef struct {
@@ -59,8 +71,8 @@ typedef struct {
     void (*logwarn)(char* msg, char* module_);
     void (*logerror)(char* msg, char* module_);
     void (*logfatal)(char* msg, char* module_);
-    uint64_t (*register_http)(muid_t muid, char* path, or_http_handler_t handler, void* extra);
-    uint64_t (*unregister_http)(muid_t muid, char* path);
+    uint64_t (*register_http)(muid_t muid, or_method_t method_mask, char* path, or_http_handler_t handler, void* extra);
+    uint64_t (*unregister_http)(muid_t muid, or_method_t method_mask, char* path);
 } or_api_t;
 
 typedef struct {
@@ -71,8 +83,8 @@ typedef bool (*init_func_t)(const or_api_t* api);
 typedef bool (*uninit_func_t)(const or_api_t* api);
 
 /* Exported functions from modmgr.go */
-extern uint64_t or_register_http(muid_t muid, char* path, or_http_handler_t handler, void* extra);
-extern uint64_t or_unregister_http(muid_t muid, char* path);
+extern uint64_t or_register_http(muid_t muid, or_method_t method_mask, char* path, or_http_handler_t handler, void* extra);
+extern uint64_t or_unregister_http(muid_t muid, or_method_t method_mask, char* path);
 
 #ifdef __linux__
     #include <dlfcn.h>
@@ -93,7 +105,7 @@ extern uint64_t or_unregister_http(muid_t muid, char* path);
 /* cffi.c exports */
 bool cffi_health(void);
 mod_handle_t cffi_load_module(char* path, muid_t muid);
-void cffi_unload_module(mod_handle_t handle);
+void cffi_unload_module(mod_handle_t handle, muid_t muid);
 void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* req, void* extra);
 loadmod_err_t get_error(void);
 
