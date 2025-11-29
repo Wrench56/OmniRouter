@@ -61,19 +61,32 @@ func setup() {
 	})
 }
 
-func normalize(p string) string {
-	if p == "" {
+func normalize(path string) string {
+	if path == "" {
 		return "/"
 	}
-	if p[0] != '/' {
-		p = "/" + p
+	if path[0] != '/' {
+		path = "/" + path
 	}
 
-	for len(p) > 1 && p[len(p)-1] == '/' {
-		p = p[:len(p)-1]
+	for len(path) > 1 && path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
 	}
 
-	return p
+	return path
+}
+
+func cleanURI(path string) (string, bool) {
+	isWildcard := false
+	if strings.HasSuffix(path, "/*") {
+		isWildcard = true
+		path = strings.TrimSuffix(path, "/*")
+		if path == "" {
+			path = "/"
+		}
+	}
+
+	return normalize(path), isWildcard
 }
 
 func GetHTTPRouter() HTTPRouter {

@@ -3,7 +3,6 @@ package router
 import (
 	"omnirouter/internal/capabilities"
 	"omnirouter/internal/logger"
-	"strings"
 )
 
 const (
@@ -35,20 +34,14 @@ func (r *radixRouter) Register(caps capabilities.Capabilities, methodMask uint8,
 		return ERR_REG_CAP
 	}
 
-	p := path
-	isWildcard := false
-	if strings.HasSuffix(p, "*") {
-		if !capabilities.HasCapabilities(caps, capabilities.CAP_HTTP_REGISTER_WILDCARD) {
-			logger.Warn("Insufficient capabilities to register a wildcard HTTP route",
-				"capabilities", caps,
-				"needed", capabilities.CAP_HTTP_REGISTER_WILDCARD&capabilities.CAP_HTTP_REGISTER)
-			return ERR_REG_WILD_CAP
-		}
-
-		isWildcard = true
+	p, isWildcard := cleanURI(path)
+	if isWildcard && !capabilities.HasCapabilities(caps, capabilities.CAP_HTTP_REGISTER_WILDCARD) {
+		logger.Warn("Insufficient capabilities to register a wildcard HTTP route",
+			"capabilities", caps,
+			"needed", capabilities.CAP_HTTP_REGISTER_WILDCARD&capabilities.CAP_HTTP_REGISTER)
+		return ERR_REG_WILD_CAP
 	}
 
-	p = normalize(p)
 	re := r.getOrCreate(p)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -61,7 +54,7 @@ func (r *radixRouter) Register(caps capabilities.Capabilities, methodMask uint8,
 		re.table.Handlers[i] = h
 	}, uint8(methodMask))
 
-	logger.Info("Added/updated HTTP handler", "path", p, "method_mask", methodMask)
+	logger.Info("Added/updated HTTP handler", "path", p, "wildcard", isWildcard, "method_mask", methodMask)
 	return SUCCESS
 }
 
@@ -72,7 +65,7 @@ func (r *radixRouter) Unregister(caps capabilities.Capabilities, methodMask uint
 		return ERR_UNREG_CAP
 	}
 
-	p := normalize(path)
+	p, _ := cleanURI(path)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
