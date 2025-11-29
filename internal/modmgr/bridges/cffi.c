@@ -8,10 +8,10 @@
 static or_api_t api = {
     .version  = MODLOADER_VERSION,
     .muid     = 0,
-    .loginfo  = loginfo,
-    .logwarn  = logwarn,
-    .logerror = logerror,
-    .logfatal = logfatal,
+    .loginfo  = or_loginfo,
+    .logwarn  = or_logwarn,
+    .logerror = or_logerror,
+    .logfatal = or_logfatal,
     .register_http = or_register_http,
     .unregister_http = or_unregister_http
 };

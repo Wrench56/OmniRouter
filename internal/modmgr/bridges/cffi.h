@@ -9,10 +9,10 @@
 
 /* Exported functions from logger_cffi.go */
 /* Do NOT use these directly. Use logger helper instead */
-extern void loginfo(char* msg, char* module_);
-extern void logwarn(char* msg, char* module_);
-extern void logerror(char* msg, char* module_);
-extern void logfatal(char* msg, char* module_);
+extern void or_loginfo(char* msg, char* module_);
+extern void or_logwarn(char* msg, char* module_);
+extern void or_logerror(char* msg, char* module_);
+extern void or_logfatal(char* msg, char* module_);
 
 /* `module:line` concat util */
 #define S1(x) #x
@@ -20,10 +20,10 @@ extern void logfatal(char* msg, char* module_);
 #define LOCATION __FILE__ ":" S2(__LINE__)
 
 /* Logger helpers */
-#define log_info(msg) loginfo(msg, LOCATION)
-#define log_warn(msg) logwarn(msg, LOCATION)
-#define log_error(msg) logerror(msg, LOCATION)
-#define log_fatal(msg) logfatal(msg, LOCATION)
+#define log_info(msg) or_loginfo(msg, LOCATION)
+#define log_warn(msg) or_logwarn(msg, LOCATION)
+#define log_error(msg) or_logerror(msg, LOCATION)
+#define log_fatal(msg) or_logfatal(msg, LOCATION)
 
 /* Load module error enum */
 typedef enum {

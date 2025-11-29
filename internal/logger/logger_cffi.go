@@ -7,26 +7,26 @@ package logger
 */
 import "C"
 
-//export loginfo
-func loginfo(msg *C.char, module *C.char) {
+//export or_loginfo
+func or_loginfo(msg *C.char, module *C.char) {
 	SetLogCallerModule(C.GoString(module))
 	Info(C.GoString(msg))
 }
 
-//export logwarn
-func logwarn(msg *C.char, module *C.char) {
+//export or_logwarn
+func or_logwarn(msg *C.char, module *C.char) {
 	SetLogCallerModule(C.GoString(module))
 	Warn(C.GoString(msg))
 }
 
-//export logerror
-func logerror(msg *C.char, module *C.char) {
+//export or_logerror
+func or_logerror(msg *C.char, module *C.char) {
 	SetLogCallerModule(C.GoString(module))
 	Error(C.GoString(msg))
 }
 
-//export logfatal
-func logfatal(msg *C.char, module *C.char) {
+//export or_logfatal
+func or_logfatal(msg *C.char, module *C.char) {
 	SetLogCallerModule(C.GoString(module))
 	Fatal(C.GoString(msg))
 }
