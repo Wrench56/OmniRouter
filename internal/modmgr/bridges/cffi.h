@@ -66,7 +66,6 @@ typedef void (*or_http_handler_t)(
 
 typedef struct {
     uint64_t version;
-    muid_t muid;
     void (*loginfo)(char* msg, char* module_);
     void (*logwarn)(char* msg, char* module_);
     void (*logerror)(char* msg, char* module_);
@@ -79,8 +78,8 @@ typedef struct {
     uint32_t version;
 } health_struct_t;
 
-typedef bool (*init_func_t)(const or_api_t* api);
-typedef bool (*uninit_func_t)(const or_api_t* api);
+typedef bool (*init_func_t)(muid_t muid, const or_api_t* api);
+typedef bool (*uninit_func_t)(muid_t muid, const or_api_t* api);
 
 /* Exported functions from modmgr.go */
 extern uint64_t or_register_http(muid_t muid, or_method_t method_mask, char* path, or_http_handler_t handler, void* extra);

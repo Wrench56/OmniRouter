@@ -5,9 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-static or_api_t api = {
+static const or_api_t api = {
     .version  = MODLOADER_VERSION,
-    .muid     = 0,
     .loginfo  = or_loginfo,
     .logwarn  = or_logwarn,
     .logerror = or_logerror,
@@ -44,21 +43,13 @@ void call_or_http_handler(or_http_handler_t fn, or_ctx_t* ctx, or_http_req_t* re
     fn(ctx, req, extra);
 }
 
-inline static void cffi_create_api_struct(or_api_t* module_api, muid_t muid) {
-    memcpy(module_api, &api, sizeof(or_api_t));
-    module_api->muid = muid;
-}
-
 #define INIT_FUNC_FAIL "Warning: init function for \"%s\" returned false (failed state)"
 
 inline static loadmod_err_t cffi_common_init_call(char* path, init_func_t init_func, muid_t muid) {
     loadmod_err_t ret = LOADMOD_SUCCESS;
 
-    or_api_t module_api = { 0 };
-    cffi_create_api_struct(&module_api, muid);
-
     /* Call init function */
-    bool success = init_func(&module_api);
+    bool success = init_func(muid, &api);
     if (!success) {
         uint32_t len = strlen(path) + sizeof(INIT_FUNC_FAIL);
         char* buf = alloca(len);
@@ -118,9 +109,7 @@ inline static void cffi_unload_so(mod_handle_t handle, muid_t muid) {
         log_error(buf);
         set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
     } else {
-        or_api_t module_api = { 0 };
-        cffi_create_api_struct(&module_api, muid);
-        uninit_func(&module_api);
+        uninit_func(muid, &api);
     }
 
     if (dlclose(handle) != 0) {
@@ -183,9 +172,7 @@ inline static void cffi_unload_dll(mod_handle_t handle, muid_t muid) {
         if (msg) LocalFree(msg);
         set_error(LOADMOD_NO_VALID_UNINIT_FUNC);
     } else {
-        or_api_t module_api = { 0 };
-        cffi_create_api_struct(&module_api, muid);
-        uninit_func(&module_api);
+        uninit_func(muid, &api);
     }
 
     if (FreeLibrary(handle) == false) {
