@@ -9,14 +9,14 @@ void hello_world_handler(or_ctx_t* ctx, or_http_req_t* req, void* extra) {
     loginfo_("Hello World triggered!", LOCATION);
 }
 
-bool init(const or_api_t* api) {
-    api->register_http(api->muid, OR_METHOD_ANY, "/test/", hello_world_handler, NULL);
+bool init(muid_t muid, const or_api_t* api) {
+    api->register_http(muid, OR_METHOD_ANY, "/test/", hello_world_handler, NULL);
     api->loginfo("Hello from the dynamically loaded library!", LOCATION);
     loginfo_ = api->loginfo;
     return true;
 }
 
-bool uninit(const or_api_t* api) {
-    api->unregister_http(api->muid, OR_METHOD_ANY, "/test/");
+bool uninit(muid_t muid, const or_api_t* api) {
+    api->unregister_http(muid, OR_METHOD_ANY, "/test/");
     return true;
 }
